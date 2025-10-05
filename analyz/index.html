@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>2GIS Routing API</title>
+    <meta name="description" content="Построение основного и альтернативного маршрутов через Routing API" />
+    <style>
+        html,
+        body,
+        #container {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="container"></div>
+    <script src="https://mapgl.2gis.com/api/js/v1"></script>
+    <script>
+        const reqUrl = `https://routing.api.2gis.com/routing/7.0.0/global?key=ddd69dc6-ad5d-4412-ba72-fcc1e8ce921d`;
+
+        const points = [
+            {
+                "type": "stop",
+                "lon": 37.582591,
+                "lat": 55.775364
+            },
+            {
+                "type": "stop",
+                "lon": 37.656625,
+                "lat": 55.765036
+            }
+        ];
+
+        const map = new mapgl.Map('container', {
+            center: [37.615655, 55.768005],
+            zoom: 13,
+            key: 'ddd69dc6-ad5d-4412-ba72-fcc1e8ce921d',
+        });
+
+        const startMarker = new mapgl.Marker(map, {
+            coordinates: [points[0].lon, points[0].lat],
+            size: [32, 32],
+            anchor: [16, 32],
+            icon: 'https://disk.2gis.com/styles/assets/icons/start-2ec1e40c6a9f2b81815b42a4932012e3d6eda12e44b8591415424847c0f35260.svg'
+        });
+
+        const endMarker = new mapgl.Marker(map, {
+            coordinates: [points[1].lon, points[1].lat],
+            size: [32, 32],
+            anchor: [16, 32],
+            icon: 'https://disk.2gis.com/styles/assets/icons/finish-22966aee51020ebd9f1a6c0a4a5e4333cb5f8a18fbffeeee693b7e18e6e5df78.svg'
+        });
+
+        let mainRouteLine;
+        let alternativeRouteLine;
+        let alternativeRouteLine2;
+
+        function fetchRoute() {
+            fetch(reqUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    points,
+                    locale: "ru",
+                    transport: "driving",
+                    filters: ["dirt_road", "toll_road", "ferry"],
+                    eclude: ["point"],
+                    alternative: 3,
+                    output: "detailed"
+                })
+            })
+                .then((res) => {
+                    if (!res.ok) {
+                        throw new Error(`HTTP error! Status: ${res.status}`);
+                    }
+                    return res.json();
+                })
+                .then((parsed) => {
+                    if (parsed.result && parsed.result.length > 0) {
+                        const mainRouteCoordinates = extractCoordinates(parsed.result[0]);
+                        const alternativeRouteCoordinates = parsed.result[1]
+                            ? extractCoordinates(parsed.result[1])
+                            : [];
+                        const alternativeRouteCoordinates2 = parsed.result[1]
+                            ? extractCoordinates(parsed.result[2])
+                            : [];
+
+                        if (mainRouteCoordinates.length > 0) {
+                            renderRoute(mainRouteCoordinates, "#0078FF"); // Основной маршрут
+                        } else {
+                            console.error("No coordinates found for the main route");
+                        }
+
+                        if (alternativeRouteCoordinates.length > 0) {
+                            renderRoute(alternativeRouteCoordinates, "#248A3F"); // Альтернативный маршрут
+                        } else {
+                            console.error("No coordinates found for the alternative route");
+                        }
+
+                        if (alternativeRouteCoordinates2.length > 0) {
+                            renderRoute(alternativeRouteCoordinates2, "#FFFFFF"); // Альтернативный маршрут
+                        } else {
+                            console.error("No coordinates found for the alternative route");
+                        }
+                    } else {
+                        console.error("No routes found in response");
+                    }
+                })
+                .catch((err) => console.error("Error fetching route data:", err.message || err));
+        }
+
+        function extractCoordinates(route) {
+            return route.maneuvers
+                .flatMap((maneuver) => {
+                    if (
+                        maneuver.outcoming_path &&
+                        maneuver.outcoming_path.geometry &&
+                        maneuver.outcoming_path.geometry.length > 0
+                    ) {
+                        return maneuver.outcoming_path.geometry
+                            .flatMap((geometry) => {
+                                const selection = geometry.selection;
+                                return selection
+                                    .replace("LINESTRING(", "")
+                                    .replace(")", "")
+                                    .split(",")
+                                    .map((point) => point.trim().split(" ").map(Number));
+                            });
+                    }
+                    return [];
+                });
+        }
+
+        function renderRoute(coordinates, color) {
+            const routeLine = new mapgl.Polyline(map, {
+                coordinates,
+                width: 6,
+                color,
+            });
+
+            if (color === "#0078FF") {
+                if (mainRouteLine) mainRouteLine.destroy();
+                mainRouteLine = routeLine;
+            } else if (color === "#248A3F") {
+                if (alternativeRouteLine) alternativeRouteLine.destroy();
+                alternativeRouteLine = routeLine;
+            } else if (color === "#FFFFF") {
+                if (alternativeRouteLine2) alternativeRouteLine2.destroy();
+                alternativeRouteLine2 = routeLine;
+            }
+        }
+        console.log(alternativeRouteLine)
+        fetchRoute();
+    </script>
+</body>
+
+</html>

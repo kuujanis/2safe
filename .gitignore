@@ -7,3 +7,6 @@
 *.gpkg-wal
 *.xlsx
 cache
+__pycache__
+analyz/data/light.geojson
+analyz/data/moscow_boundary.geojson
