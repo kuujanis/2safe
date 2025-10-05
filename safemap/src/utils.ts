@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { IPoint } from "./App";
 
 interface ViewportSize {
   vw: number;
@@ -66,4 +67,20 @@ export const useGeolocation = (options:PositionOptions = {}) => {
   return location;
 };
 
-export const API_KEY = '285d3b2b-96ab-4fe5-a700-12ef370d7085'
+export const useDebounce = (value: IPoint|null, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
+
+export const API_KEY = '15eb8b38-5b8d-4d23-ae9e-1551d0b95c3e'
+export const OLD_KEY = '285d3b2b-96ab-4fe5-a700-12ef370d7085'

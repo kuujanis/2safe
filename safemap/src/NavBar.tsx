@@ -6,8 +6,13 @@ import { API_KEY } from "./utils";
 
 interface INavBarProps {
     currentLoc: ILocation,
+    dark: boolean,
     setALoc: Dispatch<SetStateAction<IPoint|null>>, 
     setBLoc: Dispatch<SetStateAction<IPoint|null>>,
+    aValue: string,
+    setAValue: Dispatch<SetStateAction<string>>,
+    bValue: string,
+    setBValue: Dispatch<SetStateAction<string>>,
     width?: number,
     height?: number,
     vw: number,
@@ -15,19 +20,17 @@ interface INavBarProps {
 }
 
 export const NavBar = ({
-        currentLoc,
-        setALoc, 
-        setBLoc,
-        width = 400,
+        currentLoc, dark,
+        setALoc, setBLoc,
+        aValue,setAValue,
+        bValue, setBValue,
         height = 90,
-        vw,
-        vh
+        vw, vh
     }: INavBarProps) => {
     
-    const [aValue, setAValue] = useState<string>('')
-    const [bValue, setBValue] = useState<string>('')
+    
     const [suggestions, setSuggestions] = useState([])
-
+    const width = (vw > vh) ? 400 : window.innerWidth
     const sHeight = 40
     const sWidth = (vw < vh) ? (width - 130) : (width - 50)
 
@@ -60,7 +63,7 @@ export const NavBar = ({
               </div>, 
             value: 'Моё местоположение'
           },...options]
-    },[suggestions,currentLoc, setALoc])
+    },[suggestions,currentLoc, setALoc, setAValue])
     const searchOptionsB = useMemo(() => {
       const options: {key: number, label: ReactElement, value: string}[] = []
       if (suggestions && suggestions.length > 0) {
@@ -91,7 +94,7 @@ export const NavBar = ({
               </div>, 
             value: 'Моё местоположение'
           },...options]
-    },[suggestions,currentLoc, setBLoc])
+    },[suggestions,currentLoc, setBLoc, setBValue])
 
     const onAChange = useCallback(async (value: string) => {
         if (currentLoc?.coordinates){const res = await fetch(`https://catalog.api.2gis.com/3.0/suggests?q=${value}&suggest_type=object&location=${currentLoc.coordinates?.lon},${currentLoc.coordinates?.lat}&fields=items.point&key=${API_KEY}`)
@@ -99,16 +102,20 @@ export const NavBar = ({
         setAValue(value)
         console.log(res.result.items)
         setSuggestions(res.result.items)}
-    },[currentLoc])
+    },[currentLoc,setAValue])
     const onBChange = useCallback(async (value: string) => {
         if (currentLoc?.coordinates) {const res = await fetch(`https://catalog.api.2gis.com/3.0/suggests?q=${value}&suggest_type=address&location=${currentLoc.coordinates?.lon},${currentLoc.coordinates?.lat}&fields=items.point&key=${API_KEY}`)
         .then((res) => res.json())
         setBValue(value)
         setSuggestions(res.result.items)}
-    },[currentLoc])
+    },[currentLoc, setBValue])
     
     return (
-                <div style={{display: 'flex', flexDirection: 'row', width: width, alignItems: 'center', margin: '10px 2px 0 2px'}}>
+                <div style={{
+                    display: 'flex', flexDirection: 'row', width: width,
+                    alignItems: 'center', margin: '10px 2px 0 2px',
+                    color: dark ? "white" : 'grey', backgroundColor: dark ? '#141414ff' : "white"
+                }}>
                   <div>
                     <Arrow size={sHeight}/>
                   </div>
@@ -121,7 +128,7 @@ export const NavBar = ({
                         >
                           <Input
                             onChange={(e) => onAChange(e.target.value)}
-                            placeholder="Начало маршрута" size="large" allowClear value={aValue} onClear={() => setALoc(null)}
+                            placeholder={aValue} size="large" allowClear value={aValue} onClear={() => setALoc(null)}
                           />
                         </AutoComplete>
                         <div className='liter'>A</div>
@@ -134,7 +141,7 @@ export const NavBar = ({
                         >
                           <Input
                             onChange={(e) => onBChange(e.target.value)}
-                            placeholder="Пункт назначения" size="large" allowClear value={bValue} onClear={() => setBLoc(null)}
+                            placeholder={bValue} size="large" allowClear value={bValue} onClear={() => setBLoc(null)}
                           />
                         </AutoComplete>
                         <div className='liter'>Б</div>

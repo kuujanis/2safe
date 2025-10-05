@@ -1,16 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
-import { useViewport } from './utils'
-import type { GeoJSONFeature, MapLayerMouseEvent } from 'maplibre-gl'
-import { Layer, Map, Marker, Source, type LayerProps, type MapRef, } from '@vis.gl/react-maplibre'
+import { API_KEY, useDebounce, useViewport } from './utils'
+import type { GeoJSONFeature } from 'maplibre-gl'
+import { Layer, Map, Marker, Source, type LayerProps, type MapRef, type MarkerDragEvent, } from '@vis.gl/react-maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import { Checkbox, Switch } from "antd";
 import { NavBar } from './NavBar'
+import { InfoCard } from './InfoCard'
 interface GeoJSON {
   type: "FeatureCollection",
-  name: string,
-  crs: {type: string, properties: {[name: string]: string;}}
   features: GeoJSONFeature[]
 }
+
+const emptyGeoJSON:GeoJSON = {
+  type: 'FeatureCollection', 
+  features: []
+}
+
 
 export interface ILocation {
   determined: boolean,
@@ -50,7 +56,11 @@ function App() {
   });
   const [aLoc, setALoc] = useState<IPoint|null>(null)
   const [bLoc, setBLoc] = useState<IPoint|null>(null)
-  const [dark,setDark] = useState<boolean>(true)
+  const [aValue, setAValue] = useState<string>('')
+  const [bValue, setBValue] = useState<string>('')
+
+  const [naturalCycle, setNaturalCycle] = useState(true)
+  const [dark,setDark] = useState<boolean>(false)
   const [route,setRoute] = useState<GeoJSON|null>()
   // const [reverseGeocoding, setReverseGeocoding] = useState<boolean>(false)
   
@@ -59,7 +69,7 @@ function App() {
   const mapRef = useRef<MapRef>(null)
 
   useEffect(() => {
-    const fetchData = async () => {
+    if (naturalCycle) {const fetchData = async () => {
       const date = new Date()
       const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
       try {
@@ -81,28 +91,31 @@ function App() {
     };
 
     fetchData();
+    }
   });
 
 
-    // const lampLayer = useMemo(() => {
-    //   return {
-    //     id: 'lamp',
-    //         type: 'circle',
-    //         source: 'vector',
-    //         'source-layer':"light",
-    //         paint: {
-    //             'circle-color': 'cyan',
-    //             'circle-opacity': 0.25
-    //         }
-    //   }
-    // },[])
+    const lampLayer:LayerProps = useMemo(() => {
+      return {
+        id: 'lamp',
+        source: 'light',
+        type: 'circle',
+        'source-layer':'mbtiles',
+        paint: {
+          'circle-color': 'red',
+          // 'circle-opacity': 0.25,
+          'circle-radius': 2
+        }
+      }
+    },[])
 
     const routeLayer: LayerProps = useMemo(() => {
       return {
         id: 'route',
         type: 'line',
         paint: {
-          'line-color': 'red'
+          'line-color': 'red',
+          'line-width': 2
         }
       }
     },[])
@@ -124,6 +137,9 @@ function App() {
       });
     };
 
+    const debALoc: IPoint|null = useDebounce(aLoc, 30)
+    const debBLoc: IPoint|null = useDebounce(bLoc, 30)
+
     useEffect(() => {
       const fetchRoute = async (
         lon_start:number, 
@@ -131,15 +147,17 @@ function App() {
         lon_end:number,
         lat_end:number
       ) => {
-        const res = await fetch(`http://192.168.1.34:5000/api/coords=${lon_start},${lat_start};${lon_end},${lat_end}`)
+        setRoute(emptyGeoJSON)
+        const res = await fetch(`http://89.232.188.156:5000/api/coords=${lon_start},${lat_start};${lon_end},${lat_end}`)
         .then(res => res.json())
         setRoute(res)
+        console.log(res)
       }
-      if (aLoc && bLoc) {
+      if (debALoc && debBLoc) {
         console.log('ablock')
-        fetchRoute(aLoc.lon,aLoc.lat,bLoc.lon,bLoc.lat)
+        fetchRoute(debALoc.lon,debALoc.lat,debBLoc.lon,debBLoc.lat)
       }
-    })
+    },[debALoc, debBLoc])
 
     useEffect(() => {
       if (!navigator.geolocation) {
@@ -149,15 +167,47 @@ function App() {
       navigator.geolocation.getCurrentPosition(onSuccess, onError, OPTIONS);
     }, []);
 
+    const handleDragA = useCallback((e: MarkerDragEvent) => {
+      setAValue('')
+      const fetchLabel = async () => {
+        const res = await fetch(`https://catalog.api.2gis.com/3.0/items/geocode?lon=${e.lngLat.lng}&lat=${e.lngLat.lat}124&radius=50&fields=items.name&key=${API_KEY}`)
+        .then((res) => res.json())
+        console.log(res)
+        const t = res.result.items && res.result.items[0]
+        setAValue(t.addrss_name ?? t.full_name)
+      }
+      fetchLabel()
+      setALoc({lon: e.lngLat.lng, lat: e.lngLat.lat})
+    },[])
 
-
+    const handleDragB = useCallback((e: MarkerDragEvent) => {
+      setBValue('')
+      const fetchLabel = async () => {
+        const res = await fetch(`https://catalog.api.2gis.com/3.0/items/geocode?lon=${e.lngLat.lng}&lat=${e.lngLat.lat}124&radius=50&fields=items.name&key=${API_KEY}`)
+        .then((res) => res.json())
+        console.log(res)
+        const t = res.result.items && res.result.items[0]
+        setBValue(t.addrss_name ?? t.full_name)
+      }
+      fetchLabel()
+      setBLoc({lon: e.lngLat.lng, lat: e.lngLat.lat})
+    },[])
 
 
     if (vw > vh) {
       return (
         <div style={{display: 'flex', flexDirection: 'row', width: '100vw', backgroundColor: dark ? '#171717ff' : 'white'}}>
         <div className='column'>
-        <NavBar currentLoc={currentLoc} setALoc={setALoc} setBLoc={setBLoc} vw={vw} vh={vh}/> 
+        <NavBar 
+          currentLoc={currentLoc} dark={dark}
+          setALoc={setALoc} 
+          setBLoc={setBLoc} 
+          vw={vw} vh={vh} 
+          setAValue={setAValue}
+          setBValue={setBValue}
+          aValue={aValue} bValue={bValue}
+        /> 
+        {route && <InfoCard pathLength={1000} pathTime={12} safetyCategory={{score: 120, mark: 'High'}} dark={dark}/>}
         </div>
 
           <Map
@@ -172,30 +222,59 @@ function App() {
             }}
           >
             {aLoc && 
-              <Marker longitude={aLoc.lon} latitude={aLoc.lat}>
+              <Marker longitude={aLoc.lon} latitude={aLoc.lat} draggable onDragEnd={(e) => handleDragA(e)}>
                 <div style={pinStyle}>А</div>
               </Marker>
             }
             {bLoc && 
-              <Marker longitude={bLoc.lon} latitude={bLoc.lat}>
+              <Marker longitude={bLoc.lon} latitude={bLoc.lat} draggable onDragEnd={(e) => handleDragB(e)}>
                 <div style={pinStyle}>Б</div>
               </Marker>
             }
-            {/* <Source id="vector" type="vector" tiles={['safemap/src/light/{z}/{x}/{y}']}>
+            <Source id='routesrc' type='geojson' data={route ? route : emptyGeoJSON }>
+              <Layer {...routeLayer}/>
+            </Source>
+            <Source id='light' type='vector' tiles={['http://89.232.188.156:8080/data/light/{z}/{x}/{y}.pbf']}>
               <Layer {...lampLayer}/>
-            </Source> */}
+            </Source>
+            <div style={{
+              position: 'absolute', top: 10, right: 30, gap: 10, 
+              display: 'flex', flexDirection: 'column', alignItems: 'flex-end'
+            }}>
+              <Checkbox 
+                checked={naturalCycle} 
+                onChange={(e)=> setNaturalCycle(e.target.checked)} 
+                style={{fontSize: '1.1rem', fontWeight: '700', color: 'grey'}}
+              >
+                Естественный свет
+              </Checkbox>
+              <div style={{display: 'flex', flexDirection: 'row', gap: 10}}>
+                <div style={{fontSize: '1.1rem', fontWeight: '700', color: 'grey'}}>
+                  {dark ? 'Ночь':'День'}
+                </div>
+                <Switch disabled={naturalCycle} checked={dark} size={'default'} onChange={(checked) => setDark(checked)}/>
+              </div>
+            </div>
           </Map>
         </div>
       )
     }
     if (vh>vw) {
       return (
-        <div className='mobile'>
-          <NavBar currentLoc={currentLoc} setALoc={setALoc} setBLoc={setBLoc} width={window.innerWidth} vw={vw} vh={vh}/>
+        <div className='mobile' style={{backgroundColor: dark ? '#141414ff' : "white"}}>
+          <NavBar 
+            currentLoc={currentLoc} dark={dark}
+            setALoc={setALoc} setBLoc={setBLoc} 
+            vw={vw} vh={vh}
+            setAValue={setAValue}
+            setBValue={setBValue}
+            aValue={aValue} bValue={bValue}
+          />
           <Map
             style={{minWidth: '50%',  height: 'calc(100% - 100px)', width: '100%'}}
             mapStyle={dark ? "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json" : "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json" }
             ref={mapRef}
+            onClick={(e) => console.log(e)}
             initialViewState={{
               longitude: 37.55,
               latitude: 55.538,
@@ -204,23 +283,38 @@ function App() {
             }}
           >
             {aLoc && 
-              <Marker longitude={aLoc.lon} latitude={aLoc.lat}>
+              <Marker longitude={aLoc.lon} latitude={aLoc.lat} draggable onDragEnd={(e) => handleDragA(e)}>
                 <div style={pinStyle}>А</div>
               </Marker>
             }
             {bLoc && 
-              <Marker longitude={bLoc.lon} latitude={bLoc.lat}>
+              <Marker longitude={bLoc.lon} latitude={bLoc.lat} draggable onDragEnd={(e) => handleDragB(e)}> 
                 <div style={pinStyle}>Б</div>
               </Marker>
             }
-            {route && <Source type='geojson' data={route}>
+            <Source  id='routesrc' type='geojson' data={route ? route : emptyGeoJSON }>
               <Layer {...routeLayer}/>
-            </Source>}
+            </Source>
+            <div style={{
+              position: 'absolute', top: 10, right: 30, gap: 10, 
+              display: 'flex', flexDirection: 'column', alignItems: 'flex-end'
+            }}>
+              <Checkbox 
+                checked={naturalCycle} 
+                onChange={(e)=> setNaturalCycle(e.target.checked)} 
+                style={{fontSize: '1.1rem', fontWeight: '700', color: 'grey'}}
+              >
+                Естественный свет
+              </Checkbox>
+              <div style={{display: 'flex', flexDirection: 'row', gap: 10}}>
+                <div style={{fontSize: '1.1rem', fontWeight: '700', color: 'grey'}}>
+                  {dark ? 'Ночь':'День'}
+                </div>
+                <Switch disabled={naturalCycle} checked={dark} size={'default'} onChange={(checked) => setDark(checked)}/>
+              </div>
+            </div>
             
           </Map>
-          {/* <div className='slideup'>
-            
-          </div> */}
         </div>
       )
     }
