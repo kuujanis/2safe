@@ -16,12 +16,14 @@ etc.etc.
 It's intended audience are children and women, for whom navigatiing a city, escpecially after dark, has always been a challenge,
 and, by extension, family members, friends and guardians.
 
-## Start server
+# <<<<<<< HEAD
 
-flask run \
- --host=0.0.0.0
+To launch the app run
 
----
+flask run \ --host=0.0.0.0
+cd safemap
+npm i
+npm run dev
 
 ## Required libs
 
@@ -29,5 +31,3 @@ geopandas
 networkx
 shapely.geometry
 flask
-
----
