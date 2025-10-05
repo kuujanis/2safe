@@ -1,0 +1,47 @@
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+.optionLabel {
+  display: flex;
+  flex-direction: column;
+}
+.primary {
+  font-size: 0.7rem;
+}
+.secondary {
+  color: grey;
+  font-size: 0.6rem;
+}
+.my_loc {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.liter {
+  border: 1px solid lightgrey;
+  border-radius: 100%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: grey;
+  margin-left: 10px;
+}
+.liter:hover {
+  border: 1px solid rgb(185, 185, 185);
+  color: rgb(105, 105, 105);
+  background-color: rgb(235, 235, 235);
+}
+.column {
+  box-shadow: 2px 1px 1px rgba(149, 149, 149, 0.256);
+  display: flex;
+  flex-direction: column;
+  width: 450px;
+
+}
