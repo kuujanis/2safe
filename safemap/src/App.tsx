@@ -1,10 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import { useViewport } from './utils'
-import type { MapLayerMouseEvent } from 'maplibre-gl'
-import { Layer, Map, Marker, Source, type MapRef, } from '@vis.gl/react-maplibre'
+import type { GeoJSONFeature, MapLayerMouseEvent } from 'maplibre-gl'
+import { Layer, Map, Marker, Source, type LayerProps, type MapRef, } from '@vis.gl/react-maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { NavBar } from './NavBar'
+interface GeoJSON {
+  type: "FeatureCollection",
+  name: string,
+  crs: {type: string, properties: {[name: string]: string;}}
+  features: GeoJSONFeature[]
+}
 
 export interface ILocation {
   determined: boolean,
@@ -45,6 +51,7 @@ function App() {
   const [aLoc, setALoc] = useState<IPoint|null>(null)
   const [bLoc, setBLoc] = useState<IPoint|null>(null)
   const [dark,setDark] = useState<boolean>(true)
+  const [route,setRoute] = useState<GeoJSON|null>()
   // const [reverseGeocoding, setReverseGeocoding] = useState<boolean>(false)
   
   
@@ -90,6 +97,16 @@ function App() {
     //   }
     // },[])
 
+    const routeLayer: LayerProps = useMemo(() => {
+      return {
+        id: 'route',
+        type: 'line',
+        paint: {
+          'line-color': 'red'
+        }
+      }
+    },[])
+
     const onSuccess = (position: GeolocationPosition) => {
       setCurrentLoc({
         determined: true,
@@ -108,6 +125,23 @@ function App() {
     };
 
     useEffect(() => {
+      const fetchRoute = async (
+        lon_start:number, 
+        lat_start:number,
+        lon_end:number,
+        lat_end:number
+      ) => {
+        const res = await fetch(`http://192.168.1.34:5000/api/coords=${lon_start},${lat_start};${lon_end},${lat_end}`)
+        .then(res => res.json())
+        setRoute(res)
+      }
+      if (aLoc && bLoc) {
+        console.log('ablock')
+        fetchRoute(aLoc.lon,aLoc.lat,bLoc.lon,bLoc.lat)
+      }
+    })
+
+    useEffect(() => {
       if (!navigator.geolocation) {
         alert('Navigation not supported')
         return;
@@ -123,7 +157,7 @@ function App() {
       return (
         <div style={{display: 'flex', flexDirection: 'row', width: '100vw', backgroundColor: dark ? '#171717ff' : 'white'}}>
         <div className='column'>
-        <NavBar currentLoc={currentLoc} setALoc={setALoc} setBLoc={setBLoc}/> 
+        <NavBar currentLoc={currentLoc} setALoc={setALoc} setBLoc={setBLoc} vw={vw} vh={vh}/> 
         </div>
 
           <Map
@@ -156,13 +190,37 @@ function App() {
     }
     if (vh>vw) {
       return (
-        <div style={{display: 'flex', flexDirection: 'column'}}>
-          <div>
-
-          </div>
-          <div>
-
-          </div>
+        <div className='mobile'>
+          <NavBar currentLoc={currentLoc} setALoc={setALoc} setBLoc={setBLoc} width={window.innerWidth} vw={vw} vh={vh}/>
+          <Map
+            style={{minWidth: '50%',  height: 'calc(100% - 100px)', width: '100%'}}
+            mapStyle={dark ? "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json" : "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json" }
+            ref={mapRef}
+            initialViewState={{
+              longitude: 37.55,
+              latitude: 55.538,
+              fitBoundsOptions: {minZoom: 9},
+              zoom: 12.5,
+            }}
+          >
+            {aLoc && 
+              <Marker longitude={aLoc.lon} latitude={aLoc.lat}>
+                <div style={pinStyle}>А</div>
+              </Marker>
+            }
+            {bLoc && 
+              <Marker longitude={bLoc.lon} latitude={bLoc.lat}>
+                <div style={pinStyle}>Б</div>
+              </Marker>
+            }
+            {route && <Source type='geojson' data={route}>
+              <Layer {...routeLayer}/>
+            </Source>}
+            
+          </Map>
+          {/* <div className='slideup'>
+            
+          </div> */}
         </div>
       )
     }

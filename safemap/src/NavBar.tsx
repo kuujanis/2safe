@@ -7,18 +7,29 @@ import { API_KEY } from "./utils";
 interface INavBarProps {
     currentLoc: ILocation,
     setALoc: Dispatch<SetStateAction<IPoint|null>>, 
-    setBLoc: Dispatch<SetStateAction<IPoint|null>>
+    setBLoc: Dispatch<SetStateAction<IPoint|null>>,
+    width?: number,
+    height?: number,
+    vw: number,
+    vh: number
 }
 
 export const NavBar = ({
         currentLoc,
         setALoc, 
         setBLoc,
+        width = 400,
+        height = 90,
+        vw,
+        vh
     }: INavBarProps) => {
     
     const [aValue, setAValue] = useState<string>('')
     const [bValue, setBValue] = useState<string>('')
     const [suggestions, setSuggestions] = useState([])
+
+    const sHeight = 40
+    const sWidth = (vw < vh) ? (width - 130) : (width - 50)
 
     const searchOptionsA = useMemo(() => {
       const options: {key: number, label: ReactElement, value: string}[] = []
@@ -97,15 +108,15 @@ export const NavBar = ({
     },[currentLoc])
     
     return (
-                <div style={{display: 'flex', flexDirection: 'row', width: '400px', alignItems: 'center', margin: '12px 2px'}}>
+                <div style={{display: 'flex', flexDirection: 'row', width: width, alignItems: 'center', margin: '10px 2px 0 2px'}}>
                   <div>
-                    <Arrow size={40}/>
+                    <Arrow size={sHeight}/>
                   </div>
-                  <div style={{display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '90px'}}>
+                  <div style={{display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: height}}>
                       <div style={{display: 'flex', flexDirection: 'row'}}>
                         <AutoComplete
-                          popupMatchSelectWidth={350}
-                          style={{ width: 350, height: 40}} 
+                          popupMatchSelectWidth={sWidth}
+                          style={{ width: sWidth, height: sHeight}} 
                           options={searchOptionsA}
                         >
                           <Input
@@ -117,8 +128,8 @@ export const NavBar = ({
                       </div>
                       <div style={{display: 'flex', flexDirection: 'row'}}>
                         <AutoComplete
-                          popupMatchSelectWidth={350}
-                          style={{ width: 350, height: 40 }} 
+                          popupMatchSelectWidth={sWidth}
+                          style={{ width: sWidth, height: sHeight }} 
                           options={searchOptionsB}
                         >
                           <Input
